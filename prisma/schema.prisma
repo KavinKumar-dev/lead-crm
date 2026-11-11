@@ -1,0 +1,169 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. User (System Admin Account)
+// role: "ADMIN"
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  role         String        @default("ADMIN")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  activityLogs ActivityLog[]
+
+  @@index([email])
+}
+
+// 2. Client (Individual Client Account)
+// status: "ACTIVE" | "INACTIVE"
+model Client {
+  id           String        @id @default(cuid())
+  clientCode   String        @unique // Unique 5-digit ID (e.g. "10245")
+  clientName   String
+  businessName String
+  passwordHash String
+  status       String        @default("ACTIVE")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  leads         Lead[]
+  followUps     FollowUp[]
+  conversions   Conversion[]
+  activityLogs  ActivityLog[]
+  notifications Notification[]
+
+  @@index([clientCode])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// 3. Lead (Belongs to a Client)
+// source: "INSTAGRAM" | "FACEBOOK" | "WHATSAPP" | "OTHER"
+// status: "NEW_LEAD" | "CONTACTED" | "INTERESTED" | "NOT_RESPONDING" | "FOLLOW_UP_REQUIRED" | "CONVERTED" | "LOST"
+// followUpStage: "INITIAL_CONTACT" | "FOLLOW_UP_1" | "FOLLOW_UP_2" | "FOLLOW_UP_3"
+model Lead {
+  id               String        @id @default(cuid())
+  leadCode         String        @unique // Unique identifier (e.g. "LD-10001")
+  clientId         String
+  client           Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  name             String
+  mobile           String
+  source           String        @default("OTHER")
+  campaignName     String
+  status           String        @default("NEW_LEAD")
+  followUpStage    String        @default("INITIAL_CONTACT")
+  nextFollowUpDate DateTime?
+  remarks          String?
+  lostReason       String?
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  followUps        FollowUp[]
+  conversion       Conversion?
+  activityLogs     ActivityLog[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([followUpStage])
+  @@index([nextFollowUpDate])
+  @@index([createdAt])
+  @@index([clientId, status])
+  @@index([clientId, createdAt])
+}
+
+// 4. FollowUp (History of all lead updates and notes)
+model FollowUp {
+  id               String        @id @default(cuid())
+  leadId           String
+  lead             Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  clientId         String
+  client           Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  stage            String
+  status           String
+  note             String?
+  customerResponse String?
+  nextFollowUpDate DateTime?
+
+  updatedByRole    String        // "ADMIN" or "CLIENT"
+  updatedById      String?
+  createdAt        DateTime      @default(now())
+
+  @@index([leadId])
+  @@index([clientId])
+  @@index([createdAt])
+}
+
+// 5. Conversion (Details when a lead is converted)
+model Conversion {
+  id             String   @id @default(cuid())
+  leadId         String   @unique
+  lead           Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  clientId       String
+  client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  customerName   String
+  contactNumber  String
+  conversionDate DateTime @default(now())
+  productService String
+  orderValue     Float?
+  remarks        String?
+
+  createdAt      DateTime @default(now())
+
+  @@index([clientId])
+  @@index([conversionDate])
+  @@index([createdAt])
+}
+
+// 6. ActivityLog (Records all key actions)
+model ActivityLog {
+  id         String   @id @default(cuid())
+  clientId   String?
+  client     Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  leadId     String?
+  lead       Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  action     String   // e.g. "LEAD_CREATED", "STATUS_UPDATED", "CONVERTED", "CLIENT_CREATED"
+  details    String?
+  entityType String?  // e.g. "Lead", "Client", "FollowUp"
+  entityId   String?
+
+  createdAt  DateTime @default(now())
+
+  @@index([clientId])
+  @@index([leadId])
+  @@index([entityType])
+  @@index([createdAt])
+}
+
+// 7. Notification (Internal notification system)
+model Notification {
+  id        String   @id @default(cuid())
+  clientId  String?  // Null means Admin notification, non-null means Client notification
+  client    Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  type      String   // e.g. "NEW_LEAD", "FOLLOWUP_DUE", "LEAD_CONVERTED", "OVERDUE_FOLLOWUP"
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  link      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+  @@index([isRead])
+  @@index([createdAt])
+}
