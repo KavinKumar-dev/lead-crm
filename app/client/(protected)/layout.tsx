@@ -1,7 +1,7 @@
 import { requireClient } from "@/lib/auth";
 import LogoutButton from "@/components/LogoutButton";
 import Link from "next/link";
-import { LayoutDashboard, UserPlus, List, Bell, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, UserPlus, List, Bell, CheckCircle, XCircle, LogOut, Menu, X } from "lucide-react";
 import { ReactNode } from "react";
 
 export default async function ClientLayout({ children }: { children: ReactNode }) {
@@ -43,6 +43,20 @@ export default async function ClientLayout({ children }: { children: ReactNode }
           >
             <Bell size={20} />
             <span>Follow-Ups</span>
+          </Link>
+          <Link 
+            href="/client/converted" 
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <CheckCircle size={20} />
+            <span>Converted</span>
+          </Link>
+          <Link 
+            href="/client/lost" 
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <XCircle size={20} />
+            <span>Lost</span>
           </Link>
         </nav>
 
