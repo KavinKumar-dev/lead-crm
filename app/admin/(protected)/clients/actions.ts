@@ -36,7 +36,8 @@ async function generateUniqueClientCode() {
 
 export async function getClients(search?: string) {
   await requireAdmin();
-  
+
+  // Explicit field list — passwordHash must never reach the browser.
   return await db.client.findMany({
     where: search ? {
       OR: [
@@ -45,7 +46,13 @@ export async function getClients(search?: string) {
         { businessName: { contains: search } },
       ]
     } : undefined,
-    include: {
+    select: {
+      id: true,
+      clientCode: true,
+      clientName: true,
+      businessName: true,
+      status: true,
+      createdAt: true,
       _count: {
         select: { leads: true }
       }

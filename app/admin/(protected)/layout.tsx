@@ -1,7 +1,8 @@
 import { requireAdmin } from "@/lib/auth";
 import LogoutButton from "@/components/LogoutButton";
+import GlobalSearch from "./search/GlobalSearch";
 import Link from "next/link";
-import { LayoutDashboard, Users, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, List, Menu, X } from "lucide-react";
 import { ReactNode } from "react";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
@@ -16,21 +17,28 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       </header>
 
       {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-white border-r flex-shrink-0">
+      <aside className="w-full md:w-64 bg-white border-r flex-shrink-0 flex flex-col">
         <div className="p-6 hidden md:block">
           <span className="font-bold text-2xl text-blue-600">Lead CRM</span>
         </div>
-        
-        <nav className="p-4 space-y-2">
-          <Link 
-            href="/admin/dashboard" 
+
+        <nav className="p-4 space-y-2 flex-1">
+          <Link
+            href="/admin/dashboard"
             className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <LayoutDashboard size={20} />
             <span>Dashboard</span>
           </Link>
-          <Link 
-            href="/admin/clients" 
+          <Link
+            href="/admin/leads"
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <List size={20} />
+            <span>All Leads</span>
+          </Link>
+          <Link
+            href="/admin/clients"
             className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <Users size={20} />
@@ -53,9 +61,22 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header with global search */}
+        <header className="hidden md:flex items-center justify-between gap-4 bg-white border-b px-8 py-3 sticky top-0 z-40">
+          <span className="text-sm text-gray-500">
+            Signed in as <span className="font-semibold text-gray-800">{session.name}</span>
+          </span>
+          <GlobalSearch />
+        </header>
+
+        {/* Mobile global search */}
+        <div className="md:hidden bg-white border-b px-4 py-3">
+          <GlobalSearch />
+        </div>
+
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto">{children}</main>
+      </div>
     </div>
   );
 }

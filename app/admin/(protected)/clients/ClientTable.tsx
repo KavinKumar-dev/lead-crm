@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { toggleClientStatus, updateClient, resetClientPassword } from "./actions";
-import { MoreVertical, Edit2, ShieldAlert, CheckCircle2, XCircle, Key, X } from "lucide-react";
+import { MoreVertical, Edit2, ShieldAlert, CheckCircle2, XCircle, Key, X, LayoutDashboard } from "lucide-react";
 import { format } from "date-fns";
+import Link from "next/link";
 
 interface Client {
   id: string;
@@ -75,8 +76,7 @@ export default function ClientTable({ clients }: { clients: Client[] }) {
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4">Leads</th>
               <th className="px-6 py-4">Created Date</th>
-              <th className="px-6 py-4 text-right">Actions</th>
-            </tr>
+              <th className="px-6 py-4 text-right">Actions</th>            </tr>
           </thead>
           <tbody className="divide-y">
             {clients.length === 0 ? (
@@ -113,6 +113,13 @@ export default function ClientTable({ clients }: { clients: Client[] }) {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      <Link
+                        href={`/admin/clients/${client.clientCode}/dashboard`}
+                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
+                        title="View Dashboard"
+                      >
+                        <LayoutDashboard size={18} />
+                      </Link>
                       <button 
                         onClick={() => setEditingClient(client)}
                         className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"

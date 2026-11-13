@@ -4,14 +4,21 @@ import { db } from "@/lib/db";
 import { requireClient } from "@/lib/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { fieldErrors, logValidationError } from "@/lib/validation";
 
 const LeadSchema = z.object({
-  name: z.string().min(2),
+  name: z.string().min(2, "Name must be at least 2 characters"),
   mobile: z.string().regex(/^\d{10}$/, "Mobile must be exactly 10 digits"),
   source: z.string(),
-  campaignName: z.string().min(1),
-  nextFollowUpDate: z.string().optional().nullable(),
-  remarks: z.string().optional(),
+  campaignName: z.string().min(1, "Campaign name is required"),
+  nextFollowUpDate: z.preprocess(
+    (val) => (val === "" || val === undefined ? null : val),
+    z.string().nullable()
+  ),
+  remarks: z.preprocess(
+    (val) => (val === "" || val === undefined ? null : val),
+    z.string().nullable()
+  ),
 });
 
 async function generateLeadCode() {
@@ -129,20 +136,27 @@ export async function getLeadDetails(id: string) {
   return lead;
 }
 
-export async function updateLead(id: string, data: z.infer<typeof LeadSchema>) {
+export async function updateLead(
+  id: string,
+  data: z.infer<typeof LeadSchema>
+): Promise<{ success: true } | { success: false; errors: Record<string, string> }> {
   const session = await requireClient();
   const validation = LeadSchema.safeParse(data);
-  if (!validation.success) throw new Error(validation.error.errors[0].message);
+  if (!validation.success) {
+    const errors = fieldErrors(validation.error);
+    logValidationError(validation.error, "updateLead");
+    return { success: false, errors };
+  }
 
   const existing = await db.lead.findFirst({ where: { id, clientId: session.id } });
-  if (!existing) throw new Error("Lead not found");
+  if (!existing) return { success: false, errors: { _form: "Lead not found." } };
 
   const lead = await db.lead.update({
     where: { id },
     data: {
       ...validation.data,
       nextFollowUpDate: validation.data.nextFollowUpDate ? new Date(validation.data.nextFollowUpDate) : null,
-    }
+    },
   });
 
   await db.activityLog.create({

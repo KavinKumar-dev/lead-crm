@@ -55,7 +55,13 @@ function istStartOfDay(year: number, month: number, day: number): Date {
 }
 
 /** 23:59:59.999 IST of the given calendar day, as an absolute instant. */
-function istEndOfDay(year: number, month: number, day: number): Date {
+export function istEndOfDay(date: Date): Date {
+  // If date is already midnight IST, adding 24h - 1ms gives 23:59:59.999 IST.
+  return new Date(date.getTime() + 24 * 60 * 60 * 1000 - 1);
+}
+
+/** 23:59:59.999 IST of the given calendar day parts. */
+function istEndOfDayFromParts(year: number, month: number, day: number): Date {
   return new Date(Date.UTC(year, month, day, 23, 59, 59, 999) - IST_OFFSET_MS);
 }
 
@@ -111,14 +117,14 @@ export function getDateRange(
 ): DateRange {
   const now = istParts();
   const todayStart = istStartOfDay(now.year, now.month, now.day);
-  const todayEnd = istEndOfDay(now.year, now.month, now.day);
+  const todayEnd = istEndOfDayFromParts(now.year, now.month, now.day);
 
   switch ((name || "today").toLowerCase()) {
     case "yesterday": {
       const y = addDays(now, -1);
       return {
         start: istStartOfDay(y.year, y.month, y.day),
-        end: istEndOfDay(y.year, y.month, y.day),
+        end: istEndOfDayFromParts(y.year, y.month, y.day),
       };
     }
 
@@ -145,7 +151,7 @@ export function getDateRange(
           firstOfPrev.getUTCMonth(),
           firstOfPrev.getUTCDate()
         ),
-        end: istEndOfDay(
+        end: istEndOfDayFromParts(
           lastOfPrev.getUTCFullYear(),
           lastOfPrev.getUTCMonth(),
           lastOfPrev.getUTCDate()

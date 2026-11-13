@@ -8,6 +8,8 @@ import { Calendar } from "lucide-react";
 /**
  * Date filter bar. Selection is stored in the URL query (?range=..., plus
  * startDate/endDate for custom) so it survives refresh and is shareable.
+ * Shared by the client dashboard, the admin dashboard and the admin
+ * per-client dashboard.
  */
 export default function DateFilterBar({
   currentRange,
