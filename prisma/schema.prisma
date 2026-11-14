@@ -1,6 +1,10 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Direct (non-pooled) connection used by Prisma for migrations and
+  // db push. On Vercel + Neon this is the pooled "prisma://" URL for the
+  // app and the direct "postgres://" URL for the schema.
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -166,4 +170,19 @@ model Notification {
   @@index([clientId])
   @@index([isRead])
   @@index([createdAt])
+}
+
+// 8. LoginAttempt (Login rate limiting)
+// The limiter lives in the database so it works on serverless, where an
+// in-memory map is not shared between instances.
+model LoginAttempt {
+  key            String    @id // IP address the attempts came from
+  count          Int       @default(0) // failed attempts inside the window
+  firstAttemptAt DateTime // start of the current 15 minute window
+  lockedUntil    DateTime? // set while the key is blocked
+
+  updatedAt      DateTime  @updatedAt
+
+  @@index([lockedUntil])
+  @@index([firstAttemptAt])
 }

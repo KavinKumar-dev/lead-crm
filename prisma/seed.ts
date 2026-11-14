@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
-import dotenv from 'dotenv';
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -24,12 +24,21 @@ export const FOLLOW_UP_STAGES = [
   'FOLLOW_UP_3',
 ] as const;
 
+/** The admin password must be at least this long. */
+const MIN_PASSWORD_LENGTH = 12;
+
 async function main() {
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;
 
   if (!adminEmail || !adminPassword) {
     throw new Error('ADMIN_EMAIL and ADMIN_PASSWORD must be defined in .env');
+  }
+
+  if (adminPassword.length < MIN_PASSWORD_LENGTH) {
+    throw new Error(
+      `ADMIN_PASSWORD must be at least ${MIN_PASSWORD_LENGTH} characters (got ${adminPassword.length}).`
+    );
   }
 
   console.log('Seeding initial Admin user...');
@@ -50,23 +59,27 @@ async function main() {
 
   console.log(`Admin user ready: ${admin.email}`);
 
-  // Create an initial sample client if not present
-  const sampleClientCode = '10245';
-  const sampleClientPassword = await bcrypt.hash('ClientPass123!', 10);
+  // The demo client is opt-in: set SEED_DEMO=true to create it.
+  if (process.env.SEED_DEMO === 'true') {
+    const sampleClientCode = '10245';
+    const sampleClientPassword = await bcrypt.hash('ClientPass123!', 10);
 
-  const client = await prisma.client.upsert({
-    where: { clientCode: sampleClientCode },
-    update: {},
-    create: {
-      clientCode: sampleClientCode,
-      clientName: 'Demo Client',
-      businessName: 'Acme Corp',
-      passwordHash: sampleClientPassword,
-      status: 'ACTIVE',
-    },
-  });
+    const client = await prisma.client.upsert({
+      where: { clientCode: sampleClientCode },
+      update: {},
+      create: {
+        clientCode: sampleClientCode,
+        clientName: 'Demo Client',
+        businessName: 'Acme Corp',
+        passwordHash: sampleClientPassword,
+        status: 'ACTIVE',
+      },
+    });
 
-  console.log(`Sample client ready: ${client.clientCode} (${client.clientName})`);
+    console.log(`Sample client ready: ${client.clientCode} (${client.clientName})`);
+  } else {
+    console.log('SEED_DEMO is not "true" — skipping the demo client.');
+  }
 }
 
 main()

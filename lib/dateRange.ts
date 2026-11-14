@@ -12,6 +12,9 @@ const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 /** IST offset in seconds — used for SQL date bucketing (epoch seconds). */
 export const IST_OFFSET_SECONDS = IST_OFFSET_MS / 1000;
 
+/** IST offset in minutes — used for SQL date bucketing (PostgreSQL). */
+export const IST_OFFSET_MINUTES = IST_OFFSET_MS / 60000;
+
 export type DateRangeName =
   | "today"
   | "yesterday"

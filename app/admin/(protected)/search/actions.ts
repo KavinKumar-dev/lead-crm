@@ -30,9 +30,11 @@ export async function searchLeads(
     const leads = await db.lead.findMany({
       where: {
         OR: [
-          { name: { contains: term } },
-          { mobile: { contains: term } },
-          { leadCode: { contains: term } },
+          // PostgreSQL LIKE is case sensitive — "mode: insensitive" keeps the
+          // search case insensitive.
+          { name: { contains: term, mode: "insensitive" } },
+          { mobile: { contains: term, mode: "insensitive" } },
+          { leadCode: { contains: term, mode: "insensitive" } },
         ],
       },
       include: {

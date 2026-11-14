@@ -202,4 +202,88 @@ describe("authentication", () => {
     setCookie("session", expired);
     expect(await getSession()).toBeNull();
   });
+
+  it("locks an IP out after 5 failed attempts in 15 minutes", async () => {
+    const { db } = await import("@/lib/db");
+    const { POST } = await import("@/app/api/auth/client-login/route");
+
+    // Start from a clean counter for this test.
+    await db.loginAttempt.deleteMany({ where: { key: "127.0.0.1" } });
+
+    const attempt = () =>
+      POST(
+        new Request("http://localhost/api/auth/client-login", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            clientCode: fx.clientA.clientCode,
+            password: "definitely-wrong",
+          }),
+        })
+      );
+
+    // Five failures are allowed.
+    for (let i = 0; i < 5; i++) {
+      const res = await attempt();
+      expect(res.status).toBe(401);
+    }
+
+    const afterFive = await db.loginAttempt.findUnique({
+      where: { key: "127.0.0.1" },
+    });
+    expect(afterFive?.count).toBe(5);
+    expect(afterFive?.lockedUntil).toBeNull();
+
+    // The sixth attempt is rejected.
+    const blocked = await attempt();
+    expect(blocked.status).toBe(429);
+
+    const row = await db.loginAttempt.findUnique({
+      where: { key: "127.0.0.1" },
+    });
+    expect(row?.count).toBe(6);
+    expect(row?.lockedUntil).not.toBeNull();
+
+    // A correct password is refused too while the IP is locked.
+    const correct = await POST(
+      new Request("http://localhost/api/auth/client-login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          clientCode: fx.clientA.clientCode,
+          password: fx.clientA.password,
+        }),
+      })
+    );
+    expect(correct.status).toBe(429);
+
+    await db.loginAttempt.deleteMany({ where: { key: "127.0.0.1" } });
+  });
+
+  it("counts only failed attempts towards the limit", async () => {
+    const { db } = await import("@/lib/db");
+    const { POST } = await import("@/app/api/auth/client-login/route");
+
+    await db.loginAttempt.deleteMany({ where: { key: "127.0.0.1" } });
+
+    // A successful login must not consume an attempt.
+    for (let i = 0; i < 6; i++) {
+      const res = await POST(
+        new Request("http://localhost/api/auth/client-login", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            clientCode: fx.clientA.clientCode,
+            password: fx.clientA.password,
+          }),
+        })
+      );
+      expect(res.status).toBe(200);
+    }
+
+    const rows = await db.loginAttempt.count({ where: { key: "127.0.0.1" } });
+    expect(rows).toBe(0);
+
+    await db.loginAttempt.deleteMany({ where: { key: "127.0.0.1" } });
+  });
 });

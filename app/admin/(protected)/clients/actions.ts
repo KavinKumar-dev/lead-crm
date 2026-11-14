@@ -40,10 +40,12 @@ export async function getClients(search?: string) {
   // Explicit field list — passwordHash must never reach the browser.
   return await db.client.findMany({
     where: search ? {
+      // PostgreSQL LIKE is case sensitive — "mode: insensitive" keeps the
+      // search case insensitive.
       OR: [
-        { clientCode: { contains: search } },
-        { clientName: { contains: search } },
-        { businessName: { contains: search } },
+        { clientCode: { contains: search, mode: "insensitive" } },
+        { clientName: { contains: search, mode: "insensitive" } },
+        { businessName: { contains: search, mode: "insensitive" } },
       ]
     } : undefined,
     select: {

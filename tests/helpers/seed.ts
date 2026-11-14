@@ -26,6 +26,7 @@ export interface Fixtures {
 
 /** Wipe every table (the test database only). */
 export async function resetDatabase() {
+  await db.loginAttempt.deleteMany();
   await db.notification.deleteMany();
   await db.activityLog.deleteMany();
   await db.conversion.deleteMany();

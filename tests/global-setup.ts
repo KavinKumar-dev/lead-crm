@@ -1,62 +1,52 @@
 import { execSync } from "child_process";
-import fs from "fs";
-import path from "path";
+import dotenv from "dotenv";
 
 /**
  * Global test setup.
  *
- * Creates a FRESH SQLite database for the tests (prisma/test.db) and makes
- * sure the development database (prisma/dev.db) is never touched.
- *
- * "file:./test.db" is resolved by Prisma relative to the schema file
- * (prisma/schema.prisma), so it lands in prisma/test.db.
+ * Creates the schema in the dedicated TEST database (TEST_DATABASE_URL) and
+ * makes sure the production database (DATABASE_URL) is never touched.
  */
-const ROOT = process.cwd();
-const PRISMA_DIR = path.join(ROOT, "prisma");
-const TEST_DB = path.join(PRISMA_DIR, "test.db");
-const DEV_DB = path.join(PRISMA_DIR, "dev.db");
+dotenv.config();
 
-function fileSignature(file: string) {
-  if (!fs.existsSync(file)) return "missing";
-  const stat = fs.statSync(file);
-  return `${stat.size}:${stat.mtimeMs}`;
+const ROOT = process.cwd();
+
+function required(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(
+      `${name} is not set. The tests must run against a separate database — ` +
+        `set ${name} to a throwaway PostgreSQL database.`
+    );
+  }
+  return value;
 }
 
 export default function setup() {
-  process.env.DATABASE_URL = "file:./test.db";
+  const testDatabaseUrl = required("TEST_DATABASE_URL");
+  const appDatabaseUrl = process.env.DATABASE_URL?.trim();
 
-  // Guard: the test database must never be the development database.
-  if (!process.env.DATABASE_URL.includes("test.db")) {
+  if (testDatabaseUrl === appDatabaseUrl) {
     throw new Error(
-      `Refusing to run tests with DATABASE_URL="${process.env.DATABASE_URL}" — the test database must be a separate file.`
+      "TEST_DATABASE_URL must not be the same as DATABASE_URL — the tests would " +
+        "truncate the real database."
     );
   }
 
-  const devBefore = fileSignature(DEV_DB);
-
-  // Start from a clean database every run.
-  for (const suffix of ["", "-journal", "-wal", "-shm"]) {
-    const file = `${TEST_DB}${suffix}`;
-    if (fs.existsSync(file)) fs.rmSync(file);
+  if (!/^postgres(ql)?:\/\//i.test(testDatabaseUrl)) {
+    throw new Error(
+      `TEST_DATABASE_URL must be a PostgreSQL connection string (got "${testDatabaseUrl}").`
+    );
   }
 
-  // Create the schema in the test database only.
+  // Sync the schema into the TEST database only.
   execSync("npx prisma db push --skip-generate --accept-data-loss", {
     cwd: ROOT,
-    env: { ...process.env, DATABASE_URL: "file:./test.db" },
+    env: {
+      ...process.env,
+      DATABASE_URL: testDatabaseUrl,
+      DIRECT_URL: testDatabaseUrl,
+    },
     stdio: "inherit",
   });
-
-  if (!fs.existsSync(TEST_DB)) {
-    throw new Error("The test database was not created.");
-  }
-
-  return async () => {
-    const devAfter = fileSignature(DEV_DB);
-    if (devBefore !== devAfter) {
-      throw new Error(
-        `The development database was modified during the test run (${devBefore} -> ${devAfter}).`
-      );
-    }
-  };
 }

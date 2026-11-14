@@ -25,10 +25,11 @@ export default defineConfig({
       forks: { singleFork: true },
     },
     testTimeout: 30_000,
-    hookTimeout: 60_000,
+    hookTimeout: 120_000,
     env: {
-      // Set before any module (including the Prisma client) is imported.
-      DATABASE_URL: "file:./test.db",
+      // The database URL is swapped for TEST_DATABASE_URL in tests/setup.ts
+      // (before the Prisma client is created). DATABASE_URL itself is never
+      // used by the tests.
       SESSION_SECRET: "test-only-session-secret-do-not-use-in-production-0123456789",
       NODE_ENV: "test",
     },

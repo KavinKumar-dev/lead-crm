@@ -124,9 +124,11 @@ export async function getLeads(params: {
 
   if (params.q) {
     where.OR = [
-      { name: { contains: params.q } },
-      { mobile: { contains: params.q } },
-      { leadCode: { contains: params.q } },
+      // PostgreSQL LIKE is case sensitive — "mode: insensitive" keeps the
+      // search case insensitive.
+      { name: { contains: params.q, mode: "insensitive" } },
+      { mobile: { contains: params.q, mode: "insensitive" } },
+      { leadCode: { contains: params.q, mode: "insensitive" } },
     ];
   }
 

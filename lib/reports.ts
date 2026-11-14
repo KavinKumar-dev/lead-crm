@@ -13,7 +13,7 @@ import {
   DateRange,
   eachIstDayInRange,
   formatIstDate,
-  IST_OFFSET_SECONDS,
+  IST_OFFSET_MINUTES,
 } from "@/lib/dateRange";
 import {
   followUpEventLabel,
@@ -205,22 +205,23 @@ function istDate(date: Date | null | undefined): string {
 }
 
 /**
- * Builds the SQL expression that buckets an epoch-ms column into an IST
+ * Builds the SQL expression that buckets a timestamp column into an IST
  * calendar date. `bucket` is one of "day" | "week" | "month".
  *
- * Note: the shifted value must NOT be wrapped in parentheses — SQLite would
- * read "(a, 'unixepoch')" as a row value and fail with "row value misused".
+ * The column holds UTC; IST is a fixed +05:30 offset (no daylight saving),
+ * so the shift is a constant interval. PostgreSQL has no `strftime`, the
+ * equivalent is `to_char()`.
  */
 function bucketExpr(column: string, bucket: "day" | "week" | "month"): string {
-  const shifted = `${column} / 1000 + ${IST_OFFSET_SECONDS}, 'unixepoch'`;
+  const shifted = `(${column} + INTERVAL '${IST_OFFSET_MINUTES} minutes')`;
   switch (bucket) {
     case "week":
-      // ISO-ish week label: 2026-W45
-      return `strftime('%Y-W%W', ${shifted})`;
+      // ISO week label: 2026-W45
+      return `to_char(${shifted}, 'IYYY-"W"IW')`;
     case "month":
-      return `strftime('%Y-%m', ${shifted})`;
+      return `to_char(${shifted}, 'YYYY-MM')`;
     default:
-      return `strftime('%Y-%m-%d', ${shifted})`;
+      return `to_char(${shifted}, 'YYYY-MM-DD')`;
   }
 }
 
@@ -303,15 +304,15 @@ async function clientBucketedReport(
     SELECT
       ${Prisma.raw(expr)} AS bucket,
       COUNT(*) AS total,
-      SUM(CASE WHEN "Lead"."status" = 'NEW_LEAD' THEN 1 ELSE 0 END) AS newLeads,
+      SUM(CASE WHEN "Lead"."status" = 'NEW_LEAD' THEN 1 ELSE 0 END) AS "newLeads",
       SUM(CASE WHEN "Lead"."status" = 'CONTACTED' THEN 1 ELSE 0 END) AS contacted,
       SUM(CASE WHEN "Lead"."status" = 'INTERESTED' THEN 1 ELSE 0 END) AS interested,
       SUM(CASE WHEN "Lead"."status" = 'CONVERTED' THEN 1 ELSE 0 END) AS converted,
       SUM(CASE WHEN "Lead"."status" = 'LOST' THEN 1 ELSE 0 END) AS lost
     FROM "Lead"
     WHERE "Lead"."clientId" = ${clientId}
-      AND "Lead"."createdAt" >= ${range.start.getTime()}
-      AND "Lead"."createdAt" <= ${range.end.getTime()}
+      AND "Lead"."createdAt" >= ${range.start}
+      AND "Lead"."createdAt" <= ${range.end}
     GROUP BY bucket
     ORDER BY bucket ASC
     LIMIT ${MAX_EXPORT_ROWS}
@@ -366,21 +367,21 @@ async function clientFollowUpReport(
     }[]
   >`
     SELECT
-      "FollowUp"."createdAt" AS createdAt,
-      strftime('%H:%M', "FollowUp"."createdAt" / 1000 + ${IST_OFFSET_SECONDS}, 'unixepoch') AS time,
-      "Lead"."leadCode" AS leadCode,
+      "FollowUp"."createdAt" AS "createdAt",
+      to_char(("FollowUp"."createdAt" + INTERVAL '${IST_OFFSET_MINUTES} minutes'), 'HH24:MI') AS "time",
+      "Lead"."leadCode" AS "leadCode",
       "Lead"."name" AS name,
       "Lead"."mobile" AS mobile,
       "FollowUp"."stage" AS stage,
       "FollowUp"."status" AS status,
-      "FollowUp"."customerResponse" AS customerResponse,
+      "FollowUp"."customerResponse" AS "customerResponse",
       "FollowUp"."note" AS note,
-      "FollowUp"."nextFollowUpDate" AS nextFollowUpDate,
+      "FollowUp"."nextFollowUpDate" AS "nextFollowUpDate",
       COALESCE(
         "UpdaterClient"."clientName",
         "UpdaterUser"."name",
         "FollowUp"."updatedByRole"
-      ) AS updatedBy
+      ) AS "updatedBy"
     FROM "FollowUp"
     JOIN "Lead" ON "Lead"."id" = "FollowUp"."leadId"
     LEFT JOIN "Client" AS "UpdaterClient"
@@ -390,8 +391,8 @@ async function clientFollowUpReport(
       ON "FollowUp"."updatedByRole" = 'ADMIN'
       AND "UpdaterUser"."id" = "FollowUp"."updatedById"
     WHERE "FollowUp"."clientId" = ${clientId}
-      AND "FollowUp"."createdAt" >= ${range.start.getTime()}
-      AND "FollowUp"."createdAt" <= ${range.end.getTime()}
+      AND "FollowUp"."createdAt" >= ${range.start}
+      AND "FollowUp"."createdAt" <= ${range.end}
     ORDER BY "FollowUp"."createdAt" DESC
     LIMIT ${MAX_EXPORT_ROWS}
   `;
@@ -441,18 +442,18 @@ async function clientConversionReport(
     }[]
   >`
     SELECT
-      "Conversion"."conversionDate" AS conversionDate,
-      "Lead"."leadCode" AS leadCode,
-      "Conversion"."customerName" AS customerName,
-      "Conversion"."contactNumber" AS contactNumber,
-      "Conversion"."productService" AS productService,
-      "Conversion"."orderValue" AS orderValue,
+      "Conversion"."conversionDate" AS "conversionDate",
+      "Lead"."leadCode" AS "leadCode",
+      "Conversion"."customerName" AS "customerName",
+      "Conversion"."contactNumber" AS "contactNumber",
+      "Conversion"."productService" AS "productService",
+      "Conversion"."orderValue" AS "orderValue",
       "Conversion"."remarks" AS remarks
     FROM "Conversion"
     JOIN "Lead" ON "Lead"."id" = "Conversion"."leadId"
     WHERE "Conversion"."clientId" = ${clientId}
-      AND "Conversion"."conversionDate" >= ${range.start.getTime()}
-      AND "Conversion"."conversionDate" <= ${range.end.getTime()}
+      AND "Conversion"."conversionDate" >= ${range.start}
+      AND "Conversion"."conversionDate" <= ${range.end}
     ORDER BY "Conversion"."conversionDate" DESC
     LIMIT ${MAX_EXPORT_ROWS}
   `;
@@ -493,19 +494,19 @@ async function clientLostLeadReport(
     }[]
   >`
     SELECT
-      "Lead"."updatedAt" AS updatedAt,
-      "Lead"."leadCode" AS leadCode,
+      "Lead"."updatedAt" AS "updatedAt",
+      "Lead"."leadCode" AS "leadCode",
       "Lead"."name" AS name,
       "Lead"."mobile" AS mobile,
       "Lead"."source" AS source,
-      "Lead"."campaignName" AS campaignName,
-      "Lead"."lostReason" AS lostReason,
+      "Lead"."campaignName" AS "campaignName",
+      "Lead"."lostReason" AS "lostReason",
       "Lead"."remarks" AS remarks
     FROM "Lead"
     WHERE "Lead"."clientId" = ${clientId}
       AND "Lead"."status" = 'LOST'
-      AND "Lead"."updatedAt" >= ${range.start.getTime()}
-      AND "Lead"."updatedAt" <= ${range.end.getTime()}
+      AND "Lead"."updatedAt" >= ${range.start}
+      AND "Lead"."updatedAt" <= ${range.end}
     ORDER BY "Lead"."updatedAt" DESC
     LIMIT ${MAX_EXPORT_ROWS}
   `;
@@ -590,14 +591,14 @@ async function adminOverallGeneration(
     SELECT
       ${Prisma.raw(expr)} AS bucket,
       COUNT(*) AS total,
-      SUM(CASE WHEN "Lead"."status" = 'NEW_LEAD' THEN 1 ELSE 0 END) AS newLeads,
+      SUM(CASE WHEN "Lead"."status" = 'NEW_LEAD' THEN 1 ELSE 0 END) AS "newLeads",
       SUM(CASE WHEN "Lead"."status" = 'CONTACTED' THEN 1 ELSE 0 END) AS contacted,
       SUM(CASE WHEN "Lead"."status" = 'INTERESTED' THEN 1 ELSE 0 END) AS interested,
       SUM(CASE WHEN "Lead"."status" = 'CONVERTED' THEN 1 ELSE 0 END) AS converted,
       SUM(CASE WHEN "Lead"."status" = 'LOST' THEN 1 ELSE 0 END) AS lost
     FROM "Lead"
-    WHERE "Lead"."createdAt" >= ${range.start.getTime()}
-      AND "Lead"."createdAt" <= ${range.end.getTime()}
+    WHERE "Lead"."createdAt" >= ${range.start}
+      AND "Lead"."createdAt" <= ${range.end}
       ${clientFilter}
     GROUP BY bucket
     ORDER BY bucket ASC
@@ -707,19 +708,19 @@ async function adminDateWiseLeads(
   >`
     SELECT
       ${Prisma.raw(expr)} AS bucket,
-      "Lead"."clientId" AS clientId,
-      "Client"."clientName" AS clientName,
-      "Client"."clientCode" AS clientCode,
+      "Lead"."clientId" AS "clientId",
+      "Client"."clientName" AS "clientName",
+      "Client"."clientCode" AS "clientCode",
       COUNT(*) AS total,
-      SUM(CASE WHEN "Lead"."status" = 'NEW_LEAD' THEN 1 ELSE 0 END) AS newLeads,
+      SUM(CASE WHEN "Lead"."status" = 'NEW_LEAD' THEN 1 ELSE 0 END) AS "newLeads",
       SUM(CASE WHEN "Lead"."status" = 'CONVERTED' THEN 1 ELSE 0 END) AS converted,
       SUM(CASE WHEN "Lead"."status" = 'LOST' THEN 1 ELSE 0 END) AS lost
     FROM "Lead"
     JOIN "Client" ON "Client"."id" = "Lead"."clientId"
-    WHERE "Lead"."createdAt" >= ${range.start.getTime()}
-      AND "Lead"."createdAt" <= ${range.end.getTime()}
+    WHERE "Lead"."createdAt" >= ${range.start}
+      AND "Lead"."createdAt" <= ${range.end}
       ${clientFilter}
-    GROUP BY bucket, "Lead"."clientId"
+    GROUP BY bucket, "Lead"."clientId", "Client"."clientName", "Client"."clientCode"
     ORDER BY bucket ASC, "Client"."clientName" ASC
     LIMIT ${MAX_EXPORT_ROWS}
   `;
