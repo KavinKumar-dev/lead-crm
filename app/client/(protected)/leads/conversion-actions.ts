@@ -5,6 +5,7 @@ import { requireClient } from "@/lib/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { buildNote } from "@/lib/notes";
+import { getClientIdentity, notifyLeadConverted } from "@/lib/notifications";
 
 const ConversionSchema = z.object({
   customerName: z.string().min(2),
@@ -69,6 +70,21 @@ export async function markAsConverted(leadId: string, data: any) {
           details: `Converted lead ${lead.leadCode}`
         }
       });
+
+      // Conversion notification for the client (clientId set) and for the
+      // admin (clientId null).
+      const client = await getClientIdentity(tx, session.id);
+      if (client) {
+        await notifyLeadConverted(tx, {
+          clientId: client.id,
+          clientCode: client.clientCode,
+          clientName: client.clientName,
+          leadId,
+          leadCode: lead.leadCode,
+          leadName: lead.name,
+          productService: validation.data.productService,
+        });
+      }
 
       revalidatePath(`/client/leads/${leadId}`);
       return { success: true };

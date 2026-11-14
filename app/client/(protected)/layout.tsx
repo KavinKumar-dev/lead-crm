@@ -1,7 +1,8 @@
 import { requireClient } from "@/lib/auth";
 import LogoutButton from "@/components/LogoutButton";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import Link from "next/link";
-import { LayoutDashboard, UserPlus, List, Bell, CheckCircle, XCircle, LogOut, Menu, X, BarChart3 } from "lucide-react";
+import { LayoutDashboard, UserPlus, List, Bell, CheckCircle, XCircle, LogOut, Menu, X, BarChart3, BellRing } from "lucide-react";
 import { ReactNode } from "react";
 
 export default async function ClientLayout({ children }: { children: ReactNode }) {
@@ -65,6 +66,13 @@ export default async function ClientLayout({ children }: { children: ReactNode }
             <BarChart3 size={20} />
             <span>Reports</span>
           </Link>
+          <Link 
+            href="/client/notifications" 
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <BellRing size={20} />
+            <span>Notifications</span>
+          </Link>
         </nav>
 
         <div className="p-4 border-t">
@@ -82,9 +90,20 @@ export default async function ClientLayout({ children }: { children: ReactNode }
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header with the notification bell */}
+        <header className="flex items-center justify-between gap-4 bg-white border-b px-4 md:px-8 py-3 sticky top-0 z-40">
+          <span className="text-sm text-gray-500 truncate">
+            Signed in as{" "}
+            <span className="font-semibold text-gray-800">{session.name}</span>
+          </span>
+          <NotificationBell scope="client" />
+        </header>
+
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { fieldErrors, logValidationError } from "@/lib/validation";
 import { getDateRange, istEndOfDay, parseIstDate } from "@/lib/dateRange";
 import { TERMINAL_STATUSES } from "@/lib/dashboardStats";
+import { statusFilter } from "@/lib/leadFilters";
 
 const AdminLeadSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -49,6 +50,9 @@ export async function getAdminLeads(params: AdminLeadFilters) {
 
   const where: any = {};
 
+  // A status filter may hold several comma-separated statuses.
+  const statusWhere = params.status ? statusFilter(params.status) : undefined;
+
   if (params.q) {
     where.OR = [
       { name: { contains: params.q } },
@@ -67,7 +71,7 @@ export async function getAdminLeads(params: AdminLeadFilters) {
     where.clientId = client ? client.id : "__none__";
   }
 
-  if (params.status) where.status = params.status;
+  if (params.status) where.status = statusWhere;
   if (params.stage) where.followUpStage = params.stage;
   if (params.source) where.source = params.source;
 
@@ -82,7 +86,7 @@ export async function getAdminLeads(params: AdminLeadFilters) {
         : { gte: today.start, lte: today.end };
     where.AND = [
       { status: { notIn: TERMINAL_STATUSES } },
-      ...(params.status ? [{ status: params.status }] : []),
+      ...(statusWhere ? [{ status: statusWhere }] : []),
     ];
     delete where.status;
   }

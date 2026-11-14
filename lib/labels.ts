@@ -46,6 +46,18 @@ export const USER_ROLE_LABELS: Record<string, string> = {
 };
 
 /**
+ * Notification type values (matches NOTIFICATION_TYPE in
+ * lib/notificationTypes.ts).
+ */
+export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
+  NEW_LEAD: "New Lead Uploaded",
+  FOLLOWUP_DUE: "Follow-Ups Due Today",
+  OVERDUE_FOLLOWUP: "Overdue Follow-Ups",
+  AWAITING_ACTION: "Leads Awaiting Action",
+  LEAD_CONVERTED: "Lead Converted",
+};
+
+/**
  * Event shown in the Follow-Up report timeline. A follow-up record is either
  * a regular follow-up, or the automatic record created when a lead is
  * converted or marked lost.
@@ -109,6 +121,11 @@ export function leadSourceLabel(value: string | null | undefined): string {
 /** Friendly label for a client account status. */
 export function clientStatusLabel(value: string | null | undefined): string {
   return labelOf(CLIENT_STATUS_LABELS, value);
+}
+
+/** Friendly label for a notification type. */
+export function notificationTypeLabel(value: string | null | undefined): string {
+  return labelOf(NOTIFICATION_TYPE_LABELS, value);
 }
 
 /**

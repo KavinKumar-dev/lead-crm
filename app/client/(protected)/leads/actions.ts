@@ -5,6 +5,8 @@ import { requireClient } from "@/lib/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { fieldErrors, logValidationError } from "@/lib/validation";
+import { statusFilter } from "@/lib/leadFilters";
+import { getClientIdentity, notifyNewLeads } from "@/lib/notifications";
 
 const LeadSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -45,32 +47,48 @@ export async function createLead(data: z.infer<typeof LeadSchema>) {
   const { name, mobile, source, campaignName, nextFollowUpDate, remarks } = validation.data;
   const leadCode = await generateLeadCode();
 
-  const lead = await db.lead.create({
-    data: {
-      leadCode,
-      clientId: session.id,
-      name,
-      mobile,
-      source,
-      campaignName,
-      nextFollowUpDate: nextFollowUpDate ? new Date(nextFollowUpDate) : null,
-      remarks,
-    }
-  });
+  const leadId = await db.$transaction(async (tx) => {
+    const lead = await tx.lead.create({
+      data: {
+        leadCode,
+        clientId: session.id,
+        name,
+        mobile,
+        source,
+        campaignName,
+        nextFollowUpDate: nextFollowUpDate ? new Date(nextFollowUpDate) : null,
+        remarks,
+      }
+    });
 
-  await db.activityLog.create({
-    data: {
-      clientId: session.id,
-      leadId: lead.id,
-      action: "LEAD_CREATED",
-      entityType: "Lead",
-      entityId: lead.id,
-      details: `Created lead ${name} (${leadCode})`,
+    await tx.activityLog.create({
+      data: {
+        clientId: session.id,
+        leadId: lead.id,
+        action: "LEAD_CREATED",
+        entityType: "Lead",
+        entityId: lead.id,
+        details: `Created lead ${name} (${leadCode})`,
+      }
+    });
+
+    // Notification for the client (clientId set) and for the admin
+    // (clientId null).
+    const client = await getClientIdentity(tx, session.id);
+    if (client) {
+      await notifyNewLeads(tx, {
+        clientId: client.id,
+        clientCode: client.clientCode,
+        clientName: client.clientName,
+        leads: [{ id: lead.id, leadCode: lead.leadCode, name: lead.name, source: lead.source }],
+      });
     }
+
+    return lead.id;
   });
 
   revalidatePath("/client/leads");
-  return { success: true, leadId: lead.id };
+  return { success: true, leadId };
 }
 
 export async function getLeads(params: {
@@ -97,7 +115,7 @@ export async function getLeads(params: {
     ];
   }
 
-  if (params.status) where.status = params.status;
+  if (params.status) where.status = statusFilter(params.status);
   if (params.source) where.source = params.source;
   
   if (params.startDate || params.endDate) {
@@ -184,6 +202,8 @@ export async function importLeads(rows: any[]) {
 
   if (rows.length > 500) throw new Error("Maximum 500 rows allowed");
 
+  const imported: { id: string; leadCode: string; name: string; source: string }[] = [];
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const validation = LeadSchema.safeParse({
@@ -200,12 +220,18 @@ export async function importLeads(rows: any[]) {
 
     try {
       const leadCode = await generateLeadCode();
-      await db.lead.create({
+      const lead = await db.lead.create({
         data: {
           ...validation.data,
           leadCode,
           clientId: session.id,
         }
+      });
+      imported.push({
+        id: lead.id,
+        leadCode: lead.leadCode,
+        name: lead.name,
+        source: lead.source,
       });
       results.successCount++;
     } catch (e: any) {
@@ -214,11 +240,25 @@ export async function importLeads(rows: any[]) {
   }
 
   if (results.successCount > 0) {
-    await db.activityLog.create({
-      data: {
-        clientId: session.id,
-        action: "LEADS_IMPORTED",
-        details: `Imported ${results.successCount} leads`,
+    await db.$transaction(async (tx) => {
+      await tx.activityLog.create({
+        data: {
+          clientId: session.id,
+          action: "LEADS_IMPORTED",
+          details: `Imported ${results.successCount} leads`,
+        }
+      });
+
+      // One summary notification per side (client + admin) so a 500 row
+      // import does not flood the bell.
+      const client = await getClientIdentity(tx, session.id);
+      if (client) {
+        await notifyNewLeads(tx, {
+          clientId: client.id,
+          clientCode: client.clientCode,
+          clientName: client.clientName,
+          leads: imported,
+        });
       }
     });
     revalidatePath("/client/leads");

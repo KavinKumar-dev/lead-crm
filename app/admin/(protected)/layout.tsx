@@ -1,8 +1,9 @@
 import { requireAdmin } from "@/lib/auth";
 import LogoutButton from "@/components/LogoutButton";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import GlobalSearch from "./search/GlobalSearch";
 import Link from "next/link";
-import { LayoutDashboard, Users, LogOut, List, Menu, X, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, List, Menu, X, BarChart3, BellRing } from "lucide-react";
 import { ReactNode } from "react";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
@@ -13,7 +14,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       {/* Mobile Header */}
       <header className="md:hidden flex items-center justify-between p-4 bg-white border-b">
         <span className="font-bold text-xl text-blue-600">Admin Panel</span>
-        {/* Mobile menu toggle would go here, simplified for now */}
+        <NotificationBell scope="admin" />
       </header>
 
       {/* Sidebar */}
@@ -51,6 +52,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <BarChart3 size={20} />
             <span>Reports</span>
           </Link>
+          <Link
+            href="/admin/notifications"
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <BellRing size={20} />
+            <span>Notifications</span>
+          </Link>
         </nav>
 
         <div className="mt-auto p-4 border-t">
@@ -69,12 +77,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header with global search */}
+        {/* Header with global search + notification bell */}
         <header className="hidden md:flex items-center justify-between gap-4 bg-white border-b px-8 py-3 sticky top-0 z-40">
           <span className="text-sm text-gray-500">
             Signed in as <span className="font-semibold text-gray-800">{session.name}</span>
           </span>
-          <GlobalSearch />
+          <div className="flex items-center gap-4">
+            <GlobalSearch />
+            <NotificationBell scope="admin" />
+          </div>
         </header>
 
         {/* Mobile global search */}

@@ -103,12 +103,30 @@ export async function addFollowUp(leadId: string, data: any) {
   }
 }
 
-export async function getDueFollowUps() {
+/**
+ * Leads with a follow-up date that still needs attention.
+ *
+ * - "due"     → follow-ups scheduled for today (IST)
+ * - "overdue" → follow-ups scheduled before today
+ * - default   → due today or overdue
+ *
+ * The client scope comes only from the session.
+ */
+export async function getDueFollowUps(filter?: "due" | "overdue") {
   const session = await requireClient();
+  const today = getDateRange("today");
+
+  const nextFollowUpDate =
+    filter === "due"
+      ? { gte: today.start, lte: today.end }
+      : filter === "overdue"
+        ? { lt: today.start }
+        : { lte: today.end };
+
   return await db.lead.findMany({
     where: {
       clientId: session.id,
-      nextFollowUpDate: { lte: new Date() },
+      nextFollowUpDate,
       status: { notIn: ['CONVERTED', 'LOST'] }
     },
     orderBy: { nextFollowUpDate: 'asc' }

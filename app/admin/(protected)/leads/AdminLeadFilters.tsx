@@ -44,6 +44,11 @@ export default function AdminLeadFilters({
     });
   };
 
+  const statusValue = searchParams.get("status")?.toString() || "";
+  // A status filter may hold several comma-separated statuses (used by the
+  // "Leads Awaiting Action" notification link).
+  const isMultiStatus = statusValue.includes(",");
+
   const clearAll = () => {
     startTransition(() => {
       router.replace(pathname);
@@ -108,11 +113,19 @@ export default function AdminLeadFilters({
         {/* Status */}
         <div>
           <select
-            defaultValue={searchParams.get("status")?.toString() || ""}
+            defaultValue={statusValue}
             onChange={(e) => updateParam("status", e.target.value)}
             className="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           >
             <option value="">All Statuses</option>
+            {isMultiStatus && (
+              <option value={statusValue}>
+                {statusValue
+                  .split(",")
+                  .map((s) => leadStatusLabel(s.trim()))
+                  .join(", ")}
+              </option>
+            )}
             {Object.values(LEAD_STATUS).map((s) => (
               <option key={s} value={s}>
                 {leadStatusLabel(s)}
