@@ -6,6 +6,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { fieldErrors, logValidationError } from "@/lib/validation";
 import { statusFilter } from "@/lib/leadFilters";
+import { generateLeadCode, isUniqueViolation } from "@/lib/leadCodes";
 import { getClientIdentity, notifyNewLeads } from "@/lib/notifications";
 
 const LeadSchema = z.object({
@@ -23,10 +24,8 @@ const LeadSchema = z.object({
   ),
 });
 
-async function generateLeadCode() {
-  const count = await db.lead.count();
-  return `LD-${(count + 1).toString().padStart(5, '0')}`;
-}
+/** How many times a lead code collision is retried before giving up. */
+const LEAD_CODE_ATTEMPTS = 3;
 
 export async function checkDuplicateLead(mobile: string) {
   const session = await requireClient();
@@ -45,50 +44,66 @@ export async function createLead(data: z.infer<typeof LeadSchema>) {
   if (!validation.success) throw new Error(validation.error.errors[0].message);
 
   const { name, mobile, source, campaignName, nextFollowUpDate, remarks } = validation.data;
-  const leadCode = await generateLeadCode();
 
-  const leadId = await db.$transaction(async (tx) => {
-    const lead = await tx.lead.create({
-      data: {
-        leadCode,
-        clientId: session.id,
-        name,
-        mobile,
-        source,
-        campaignName,
-        nextFollowUpDate: nextFollowUpDate ? new Date(nextFollowUpDate) : null,
-        remarks,
-      }
-    });
+  // The lead code sequence is scoped to this client (see lib/leadCodes.ts).
+  const client = await getClientIdentity(db, session.id);
+  if (!client) throw new Error("Client account not found");
 
-    await tx.activityLog.create({
-      data: {
-        clientId: session.id,
-        leadId: lead.id,
-        action: "LEAD_CREATED",
-        entityType: "Lead",
-        entityId: lead.id,
-        details: `Created lead ${name} (${leadCode})`,
-      }
-    });
+  let lastError: unknown = null;
 
-    // Notification for the client (clientId set) and for the admin
-    // (clientId null).
-    const client = await getClientIdentity(tx, session.id);
-    if (client) {
-      await notifyNewLeads(tx, {
-        clientId: client.id,
-        clientCode: client.clientCode,
-        clientName: client.clientName,
-        leads: [{ id: lead.id, leadCode: lead.leadCode, name: lead.name, source: lead.source }],
+  for (let attempt = 0; attempt < LEAD_CODE_ATTEMPTS; attempt++) {
+    const leadCode = await generateLeadCode(session.id, client.clientCode);
+
+    try {
+      const leadId = await db.$transaction(async (tx) => {
+        const lead = await tx.lead.create({
+          data: {
+            leadCode,
+            clientId: session.id,
+            name,
+            mobile,
+            source,
+            campaignName,
+            nextFollowUpDate: nextFollowUpDate ? new Date(nextFollowUpDate) : null,
+            remarks,
+          }
+        });
+
+        await tx.activityLog.create({
+          data: {
+            clientId: session.id,
+            leadId: lead.id,
+            action: "LEAD_CREATED",
+            entityType: "Lead",
+            entityId: lead.id,
+            details: `Created lead ${name} (${leadCode})`,
+          }
+        });
+
+        // Notification for the client (clientId set) and for the admin
+        // (clientId null).
+        await notifyNewLeads(tx, {
+          clientId: client.id,
+          clientCode: client.clientCode,
+          clientName: client.clientName,
+          leads: [{ id: lead.id, leadCode: lead.leadCode, name: lead.name, source: lead.source }],
+        });
+
+        return lead.id;
       });
+
+      revalidatePath("/client/leads");
+      return { success: true, leadId };
+    } catch (error) {
+      // Two leads created at the same moment can pick the same sequence
+      // number — retry with a fresh code.
+      lastError = error;
+      if (!isUniqueViolation(error)) throw error;
     }
+  }
 
-    return lead.id;
-  });
-
-  revalidatePath("/client/leads");
-  return { success: true, leadId };
+  console.error("createLead error:", lastError);
+  throw new Error("Could not create the lead. Please try again.");
 }
 
 export async function getLeads(params: {
@@ -169,22 +184,27 @@ export async function updateLead(
   const existing = await db.lead.findFirst({ where: { id, clientId: session.id } });
   if (!existing) return { success: false, errors: { _form: "Lead not found." } };
 
-  const lead = await db.lead.update({
-    where: { id },
+  // The update itself is scoped to the client as well, so the write can only
+  // ever touch a lead that belongs to the session's client.
+  const updated = await db.lead.updateMany({
+    where: { id, clientId: session.id },
     data: {
       ...validation.data,
       nextFollowUpDate: validation.data.nextFollowUpDate ? new Date(validation.data.nextFollowUpDate) : null,
     },
   });
+  if (updated.count === 0) {
+    return { success: false, errors: { _form: "Lead not found." } };
+  }
 
   await db.activityLog.create({
     data: {
       clientId: session.id,
-      leadId: lead.id,
+      leadId: id,
       action: "LEAD_UPDATED",
       entityType: "Lead",
-      entityId: lead.id,
-      details: `Updated lead ${lead.name}`,
+      entityId: id,
+      details: `Updated lead ${existing.name}`,
     }
   });
 
@@ -203,6 +223,8 @@ export async function importLeads(rows: any[]) {
   if (rows.length > 500) throw new Error("Maximum 500 rows allowed");
 
   const imported: { id: string; leadCode: string; name: string; source: string }[] = [];
+  const client = await getClientIdentity(db, session.id);
+  if (!client) throw new Error("Client account not found");
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -218,24 +240,37 @@ export async function importLeads(rows: any[]) {
       continue;
     }
 
-    try {
-      const leadCode = await generateLeadCode();
-      const lead = await db.lead.create({
-        data: {
-          ...validation.data,
-          leadCode,
-          clientId: session.id,
-        }
-      });
-      imported.push({
-        id: lead.id,
-        leadCode: lead.leadCode,
-        name: lead.name,
-        source: lead.source,
-      });
-      results.successCount++;
-    } catch (e: any) {
-      results.errors.push({ row: i + 1, error: e.message });
+    let lastError: { message?: string } | null = null;
+    let created = false;
+
+    // Retry on a lead code collision (two rows imported at the same moment).
+    for (let attempt = 0; attempt < LEAD_CODE_ATTEMPTS; attempt++) {
+      try {
+        const leadCode = await generateLeadCode(session.id, client.clientCode);
+        const lead = await db.lead.create({
+          data: {
+            ...validation.data,
+            leadCode,
+            clientId: session.id,
+          }
+        });
+        imported.push({
+          id: lead.id,
+          leadCode: lead.leadCode,
+          name: lead.name,
+          source: lead.source,
+        });
+        results.successCount++;
+        created = true;
+        break;
+      } catch (e: any) {
+        lastError = e;
+        if (!isUniqueViolation(e)) break;
+      }
+    }
+
+    if (!created) {
+      results.errors.push({ row: i + 1, error: lastError?.message ?? "Import failed" });
     }
   }
 
@@ -251,15 +286,12 @@ export async function importLeads(rows: any[]) {
 
       // One summary notification per side (client + admin) so a 500 row
       // import does not flood the bell.
-      const client = await getClientIdentity(tx, session.id);
-      if (client) {
-        await notifyNewLeads(tx, {
-          clientId: client.id,
-          clientCode: client.clientCode,
-          clientName: client.clientName,
-          leads: imported,
-        });
-      }
+      await notifyNewLeads(tx, {
+        clientId: client.id,
+        clientCode: client.clientCode,
+        clientName: client.clientName,
+        leads: imported,
+      });
     });
     revalidatePath("/client/leads");
   }

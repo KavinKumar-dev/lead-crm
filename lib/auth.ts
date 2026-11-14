@@ -1,6 +1,7 @@
 import { jwtVerify, SignJWT } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
 
 const SESSION_SECRET = process.env.SESSION_SECRET;
 if (!SESSION_SECRET) throw new Error("SESSION_SECRET is not defined");
@@ -49,9 +50,26 @@ export async function requireAdmin() {
   return session;
 }
 
+/**
+ * Guard for client-only routes and actions.
+ *
+ * The client scope comes exclusively from the session — `session.id` IS the
+ * clientId, it is never taken from the request.
+ *
+ * The account status is re-checked on every call: deactivating a client must
+ * lock it out immediately instead of letting it keep working until the
+ * 8 hour session cookie expires.
+ */
 export async function requireClient() {
   const session = await getSession();
   if (!session || session.role !== "CLIENT") redirect("/client/login");
+
+  const client = await db.client.findUnique({
+    where: { id: session.id },
+    select: { status: true },
+  });
+  if (!client || client.status !== "ACTIVE") redirect("/client/login");
+
   return session; // session.id here is the clientId
 }
 

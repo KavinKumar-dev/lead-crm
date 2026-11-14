@@ -14,7 +14,13 @@ export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for") || "127.0.0.1";
   if (isRateLimited(ip)) return NextResponse.json({ error: "Too many attempts" }, { status: 429 });
 
-  const body = await req.json();
+  let body: unknown = null;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+  }
+
   const validation = schema.safeParse(body);
   if (!validation.success) return NextResponse.json({ error: "Invalid input" }, { status: 400 });
 
