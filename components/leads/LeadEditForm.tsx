@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LEAD_SOURCE } from "@/lib/constants";
+import { leadSourceLabel } from "@/lib/labels";
 
 export interface LeadEditValues {
   name: string;
@@ -137,7 +138,7 @@ export default function LeadEditForm({
           >
             {Object.values(LEAD_SOURCE).map((s) => (
               <option key={s} value={s}>
-                {s}
+                {leadSourceLabel(s)}
               </option>
             ))}
           </select>

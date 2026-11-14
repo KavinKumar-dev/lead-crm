@@ -3,6 +3,13 @@ import Link from "next/link";
 import { getAdminLeadDetails } from "../actions";
 import { format } from "date-fns";
 import { ArrowLeft, Edit2, Building2, Phone, Calendar, Tag } from "lucide-react";
+import {
+  followUpEventLabel,
+  followUpStageLabel,
+  isTerminalEvent,
+  leadSourceLabel,
+  leadStatusLabel,
+} from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +54,7 @@ export default async function AdminLeadPage({ params }: { params: { id: string }
           </Link>
         </span>
         <span className="text-xs bg-blue-100 text-blue-800 font-bold px-2 py-1 rounded-full">
-          {lead.status.replace(/_/g, " ")}
+          {leadStatusLabel(lead.status)}
         </span>
       </div>
 
@@ -66,7 +73,7 @@ export default async function AdminLeadPage({ params }: { params: { id: string }
               <dt className="text-gray-500 flex items-center gap-2">
                 <Tag size={14} /> Source
               </dt>
-              <dd className="font-medium">{lead.source}</dd>
+              <dd className="font-medium">{leadSourceLabel(lead.source)}</dd>
             </div>
             <div className="flex items-center justify-between gap-4 border-b pb-2">
               <dt className="text-gray-500">Campaign</dt>
@@ -82,7 +89,7 @@ export default async function AdminLeadPage({ params }: { params: { id: string }
             </div>
             <div className="flex items-center justify-between gap-4 border-b pb-2">
               <dt className="text-gray-500">Follow-Up Stage</dt>
-              <dd className="font-medium">{lead.followUpStage.replace(/_/g, " ")}</dd>
+              <dd className="font-medium">{followUpStageLabel(lead.followUpStage)}</dd>
             </div>
             <div className="flex items-center justify-between gap-4 border-b pb-2">
               <dt className="text-gray-500">Created</dt>
@@ -123,7 +130,9 @@ export default async function AdminLeadPage({ params }: { params: { id: string }
                 {lead.followUps.map((item) => (
                   <div key={item.id} className="border-l-2 border-blue-500 pl-4 py-1">
                     <p className="font-bold text-sm">
-                      {item.stage.replace(/_/g, " ")} — {item.status.replace(/_/g, " ")}
+                      {isTerminalEvent(item.status)
+                        ? followUpEventLabel(item.status)
+                        : `${followUpStageLabel(item.stage)} — ${leadStatusLabel(item.status)}`}
                     </p>
                     {item.customerResponse && (
                       <p className="text-sm italic">"{item.customerResponse}"</p>
@@ -131,7 +140,7 @@ export default async function AdminLeadPage({ params }: { params: { id: string }
                     {item.note && <p className="text-sm">{item.note}</p>}
                     <p className="text-[10px] text-gray-400">
                       {format(new Date(item.createdAt), "PPpp")} · by{" "}
-                      {item.updatedByRole}
+                      {item.updatedByName}
                     </p>
                   </div>
                 ))}

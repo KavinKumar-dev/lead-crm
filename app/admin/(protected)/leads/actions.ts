@@ -140,7 +140,45 @@ export async function getAdminLeadDetails(id: string) {
     },
   });
 
-  return lead;
+  if (!lead) return null;
+
+  // Resolve the name of whoever recorded each follow-up (client or admin).
+  const clientIds = new Set<string>();
+  const userIds = new Set<string>();
+  for (const fu of lead.followUps) {
+    if (!fu.updatedById) continue;
+    if (fu.updatedByRole === "ADMIN") userIds.add(fu.updatedById);
+    else clientIds.add(fu.updatedById);
+  }
+
+  const [clients, users] = await Promise.all([
+    clientIds.size
+      ? db.client.findMany({
+          where: { id: { in: Array.from(clientIds) } },
+          select: { id: true, clientName: true },
+        })
+      : Promise.resolve([]),
+    userIds.size
+      ? db.user.findMany({
+          where: { id: { in: Array.from(userIds) } },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const nameById = new Map<string, string>();
+  for (const c of clients) nameById.set(c.id, c.clientName);
+  for (const u of users) nameById.set(u.id, u.name);
+
+  return {
+    ...lead,
+    followUps: lead.followUps.map((fu) => ({
+      ...fu,
+      updatedByName: fu.updatedById
+        ? nameById.get(fu.updatedById) ?? fu.updatedByRole
+        : fu.updatedByRole,
+    })),
+  };
 }
 
 /**

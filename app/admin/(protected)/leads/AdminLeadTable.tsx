@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { Eye, Edit2 } from "lucide-react";
 import { format } from "date-fns";
+import {
+  followUpStageLabel,
+  leadSourceLabel,
+  leadStatusLabel,
+} from "@/lib/labels";
 
 interface AdminLead {
   id: string;
@@ -98,9 +103,9 @@ export default function AdminLeadTable({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-600">{lead.mobile}</td>
-                  <td className="px-4 py-3 text-gray-600">{lead.source}</td>
+                  <td className="px-4 py-3 text-gray-600">{leadSourceLabel(lead.source)}</td>
                   <td className="px-4 py-3 text-gray-500 text-xs">
-                    {lead.followUpStage.replace(/_/g, " ")}
+                    {followUpStageLabel(lead.followUpStage)}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -108,7 +113,7 @@ export default function AdminLeadTable({
                         lead.status
                       )}`}
                     >
-                      {lead.status.replace(/_/g, " ")}
+                      {leadStatusLabel(lead.status)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-500">

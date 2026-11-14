@@ -3,13 +3,37 @@
 import { addFollowUp } from "../follow-up-actions";
 import { markAsConverted, markAsLost } from "../conversion-actions";
 import { format } from "date-fns";
-import { FOLLOW_UP_STAGE } from "@/lib/constants";
+import { FOLLOW_UP_STAGE, LEAD_STATUS } from "@/lib/constants";
+import {
+  followUpEventLabel,
+  followUpStageLabel,
+  isTerminalEvent,
+  leadStatusLabel,
+} from "@/lib/labels";
+import { getDateRange, formatIstDate } from "@/lib/dateRange";
 import { useState } from "react";
+
+/**
+ * Statuses a follow-up may set. NEW_LEAD is excluded on purpose: a lead that
+ * has already been contacted must not fall back to "New Lead".
+ */
+const FOLLOW_UP_STATUSES = [
+  LEAD_STATUS.CONTACTED,
+  LEAD_STATUS.INTERESTED,
+  LEAD_STATUS.NOT_RESPONDING,
+  LEAD_STATUS.FOLLOW_UP_REQUIRED,
+];
 
 export default function LeadDetailsClient({ lead, history }: { lead: any, history: any[] }) {
   const [errors, setErrors] = useState<any>({});
+  const today = formatIstDate(getDateRange("today").start);
 
   async function handleAddFollowUp(formData: FormData) {
+    const nextDate = (formData.get("nextFollowUpDate") as string) || "";
+    if (nextDate && nextDate < today) {
+      setErrors({ nextFollowUpDate: ["Next Follow-Up Date cannot be before today."] });
+      return;
+    }
     const res: any = await addFollowUp(lead.id, Object.fromEntries(formData));
     if (res.success) window.location.reload();
     else setErrors(res.errors);
@@ -31,11 +55,11 @@ export default function LeadDetailsClient({ lead, history }: { lead: any, histor
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-xl border shadow-sm">
         <h1 className="text-2xl font-bold">Lead: {lead.name} ({lead.leadCode})</h1>
-        <p className="text-gray-500">Status: <span className="font-bold">{lead.status}</span></p>
-        
+        <p className="text-gray-500">Status: <span className="font-bold">{leadStatusLabel(lead.status)}</span></p>
+
         {['CONVERTED', 'LOST'].includes(lead.status) ? (
             <div className="mt-4 p-4 bg-gray-100 rounded">
-                Outcome: {lead.status} {lead.lostReason && `- Reason: ${lead.lostReason}`}
+                Outcome: {leadStatusLabel(lead.status)} {lead.lostReason && `- Reason: ${lead.lostReason}`}
             </div>
         ) : (
             <div className="flex flex-col md:flex-row gap-4 mt-4">
@@ -91,13 +115,13 @@ export default function LeadDetailsClient({ lead, history }: { lead: any, histor
           <h2 className="font-bold">Add Follow-Up</h2>
           <div className="space-y-1">
             <select name="stage" className="w-full border p-2 rounded text-sm">
-                {Object.values(FOLLOW_UP_STAGE).map(s => <option key={s} value={s}>{s}</option>)}
+                {Object.values(FOLLOW_UP_STAGE).map(s => <option key={s} value={s}>{followUpStageLabel(s)}</option>)}
             </select>
             {errors.stage && <p className="text-red-500 text-[10px]">{errors.stage}</p>}
           </div>
           <div className="space-y-1">
             <select name="status" className="w-full border p-2 rounded text-sm">
-                {['NEW_LEAD', 'CONTACTED', 'INTERESTED', 'NOT_RESPONDING', 'FOLLOW_UP_REQUIRED'].map(s => <option key={s} value={s}>{s}</option>)}
+                {FOLLOW_UP_STATUSES.map(s => <option key={s} value={s}>{leadStatusLabel(s)}</option>)}
             </select>
             {errors.status && <p className="text-red-500 text-[10px]">{errors.status}</p>}
           </div>
@@ -110,7 +134,7 @@ export default function LeadDetailsClient({ lead, history }: { lead: any, histor
             {errors.note && <p className="text-red-500 text-[10px]">{errors.note}</p>}
           </div>
           <div className="space-y-1">
-            <input name="nextFollowUpDate" type="date" className="w-full border p-2 rounded text-sm" />
+            <input name="nextFollowUpDate" type="date" min={today} className="w-full border p-2 rounded text-sm" />
             {errors.nextFollowUpDate && <p className="text-red-500 text-[10px]">{errors.nextFollowUpDate}</p>}
           </div>
           <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded w-full font-bold">Save Follow-Up</button>
@@ -121,7 +145,11 @@ export default function LeadDetailsClient({ lead, history }: { lead: any, histor
           <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
             {history.map(item => (
               <div key={item.id} className="border-l-2 border-green-500 pl-4 py-1">
-                <p className="font-bold text-sm">{item.stage} - {item.status}</p>
+                <p className="font-bold text-sm">
+                  {isTerminalEvent(item.status)
+                    ? followUpEventLabel(item.status)
+                    : `${followUpStageLabel(item.stage)} — ${leadStatusLabel(item.status)}`}
+                </p>
                 {item.customerResponse && <p className="text-sm italic">"{item.customerResponse}"</p>}
                 {item.note && <p className="text-sm">{item.note}</p>}
                 <p className="text-[10px] text-gray-400">{format(new Date(item.createdAt), "PPpp")}</p>

@@ -4,6 +4,11 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search, Filter, Calendar, X } from "lucide-react";
 import { useTransition } from "react";
 import { LEAD_STATUS, LEAD_SOURCE, FOLLOW_UP_STAGE } from "@/lib/constants";
+import {
+  followUpStageLabel,
+  leadSourceLabel,
+  leadStatusLabel,
+} from "@/lib/labels";
 
 interface ClientOption {
   id: string;
@@ -110,7 +115,7 @@ export default function AdminLeadFilters({
             <option value="">All Statuses</option>
             {Object.values(LEAD_STATUS).map((s) => (
               <option key={s} value={s}>
-                {s.replace(/_/g, " ")}
+                {leadStatusLabel(s)}
               </option>
             ))}
           </select>
@@ -126,7 +131,7 @@ export default function AdminLeadFilters({
             <option value="">All Stages</option>
             {Object.values(FOLLOW_UP_STAGE).map((s) => (
               <option key={s} value={s}>
-                {s.replace(/_/g, " ")}
+                {followUpStageLabel(s)}
               </option>
             ))}
           </select>
@@ -142,7 +147,7 @@ export default function AdminLeadFilters({
             <option value="">All Sources</option>
             {Object.values(LEAD_SOURCE).map((s) => (
               <option key={s} value={s}>
-                {s}
+                {leadSourceLabel(s)}
               </option>
             ))}
           </select>

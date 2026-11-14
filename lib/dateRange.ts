@@ -9,6 +9,9 @@
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
+/** IST offset in seconds — used for SQL date bucketing (epoch seconds). */
+export const IST_OFFSET_SECONDS = IST_OFFSET_MS / 1000;
+
 export type DateRangeName =
   | "today"
   | "yesterday"
@@ -101,6 +104,31 @@ export function formatIstDate(date: Date): string {
   return shifted.toISOString().slice(0, 10);
 }
 
+/**
+ * Every IST calendar day covered by a range, as "YYYY-MM-DD" strings.
+ *
+ * Used by the daily reports so that days without any activity still appear
+ * (with zero counts) instead of being missing from the output.
+ */
+export function eachIstDayInRange(range: DateRange): string[] {
+  // Convert both bounds to IST calendar days.
+  const startDay = formatIstDate(range.start);
+  const endDay = formatIstDate(range.end);
+
+  const start = parseIstDate(startDay);
+  const end = parseIstDate(endDay);
+  if (!start || !end) return [];
+
+  const days: string[] = [];
+  let cursor = start;
+  while (cursor.getTime() <= end.getTime()) {
+    days.push(formatIstDate(cursor));
+    // Advance one calendar day (24h) in IST terms.
+    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return days;
+}
+
 export function isDateRangeName(value?: string | null): value is DateRangeName {
   return !!value && DATE_RANGE_OPTIONS.some((o) => o.value === value);
 }
@@ -169,4 +197,64 @@ export function getDateRange(
     default:
       return { start: todayStart, end: todayEnd };
   }
+}
+
+export interface ResolvedRange {
+  range: DateRange;
+  rangeName: DateRangeName;
+  rangeLabel: string;
+}
+
+export type ResolveRangeResult =
+  | { ok: true; range: DateRange; rangeName: DateRangeName; rangeLabel: string }
+  | { ok: false; error: string };
+
+/**
+ * Resolve a range filter from raw (untrusted) input. Returns a structured
+ * error instead of throwing, so callers can surface a friendly message.
+ *
+ * Lives in lib/dateRange.ts so both the dashboards and the reports module
+ * can use it without pulling in the database client.
+ */
+export function resolveDateRange(input?: {
+  range?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+}): ResolveRangeResult {
+  const rangeName = (input?.range || "today") as DateRangeName;
+
+  if (!isDateRangeName(rangeName)) {
+    return { ok: false, error: `Unknown date filter "${rangeName}".` };
+  }
+
+  let start: Date | null = null;
+  let end: Date | null = null;
+
+  if (rangeName === "custom") {
+    if (input?.startDate) start = parseIstDate(input.startDate);
+    if (input?.endDate) end = parseIstDate(input.endDate);
+
+    if (
+      (input?.startDate && !start) ||
+      (input?.endDate && !end)
+    ) {
+      return { ok: false, error: "Invalid custom date. Please use valid YYYY-MM-DD dates." };
+    }
+    if (!start || !end) {
+      return { ok: false, error: "Custom range requires both a start and an end date." };
+    }
+  }
+
+  const range = getDateRange(rangeName, {
+    start: input?.startDate,
+    end: input?.endDate,
+  });
+
+  // Ensure the custom range covers the whole end day in IST.
+  if (rangeName === "custom" && end) {
+    range.end = istEndOfDay(end);
+  }
+
+  const rangeLabel = DATE_RANGE_OPTIONS.find((o) => o.value === rangeName)?.label ?? "Today";
+  return { ok: true, range, rangeName, rangeLabel };
 }

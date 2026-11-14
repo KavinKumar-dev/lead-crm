@@ -4,6 +4,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search, Filter, Calendar } from "lucide-react";
 import { useTransition } from "react";
 import { LEAD_STATUS, LEAD_SOURCE } from "@/lib/constants";
+import { leadSourceLabel, leadStatusLabel } from "@/lib/labels";
 
 export default function LeadFilters() {
   const router = useRouter();
@@ -49,7 +50,7 @@ export default function LeadFilters() {
           >
             <option value="">All Statuses</option>
             {Object.values(LEAD_STATUS).map(s => (
-              <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
+              <option key={s} value={s}>{leadStatusLabel(s)}</option>
             ))}
           </select>
         </div>
@@ -63,7 +64,7 @@ export default function LeadFilters() {
           >
             <option value="">All Sources</option>
             {Object.values(LEAD_SOURCE).map(s => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>{leadSourceLabel(s)}</option>
             ))}
           </select>
         </div>

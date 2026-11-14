@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireClient } from "@/lib/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { buildNote } from "@/lib/notes";
 
 const ConversionSchema = z.object({
   customerName: z.string().min(2),
@@ -49,7 +50,10 @@ export async function markAsConverted(leadId: string, data: any) {
           clientId: session.id,
           stage: 'INITIAL_CONTACT',
           status: 'CONVERTED',
-          note: `Lead Converted: ${validation.data.productService} (Value: ${validation.data.orderValue || 0})`,
+          note: buildNote(
+            `Lead Converted: ${validation.data.productService} (Value: ${validation.data.orderValue || 0})`,
+            validation.data.remarks
+          ),
           updatedByRole: 'CLIENT',
           updatedById: session.id
         }
@@ -98,7 +102,10 @@ export async function markAsLost(leadId: string, data: any) {
           clientId: session.id,
           stage: 'INITIAL_CONTACT',
           status: 'LOST',
-          note: `Lead Lost: ${validation.data.lostReason} - ${validation.data.note || ''}`,
+          note: buildNote(
+            `Lead Lost: ${validation.data.lostReason}`,
+            validation.data.note
+          ),
           updatedByRole: 'CLIENT',
           updatedById: session.id
         }

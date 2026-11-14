@@ -4,10 +4,23 @@ import { db } from "@/lib/db";
 import { requireClient } from "@/lib/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { getDateRange, parseIstDate } from "@/lib/dateRange";
+import { leadStatusLabel, followUpStageLabel } from "@/lib/labels";
+
+/**
+ * Statuses a follow-up may set. NEW_LEAD is intentionally excluded: once a
+ * lead has been contacted it must not fall back to "New Lead".
+ */
+const FOLLOW_UP_STATUSES = [
+  "CONTACTED",
+  "INTERESTED",
+  "NOT_RESPONDING",
+  "FOLLOW_UP_REQUIRED",
+] as const;
 
 const FollowUpSchema = z.object({
-  stage: z.enum(['INITIAL_CONTACT', 'FOLLOW_UP_1', 'FOLLOW_UP_2', 'FOLLOW_UP_3']),
-  status: z.enum(['NEW_LEAD', 'CONTACTED', 'INTERESTED', 'NOT_RESPONDING', 'FOLLOW_UP_REQUIRED']),
+  stage: z.enum(["INITIAL_CONTACT", "FOLLOW_UP_1", "FOLLOW_UP_2", "FOLLOW_UP_3"]),
+  status: z.enum(FOLLOW_UP_STATUSES),
   note: z.preprocess((val) => (val === "" ? undefined : val), z.string().optional()),
   customerResponse: z.preprocess((val) => (val === "" ? undefined : val), z.string().optional()),
   nextFollowUpDate: z.preprocess((val) => (val === "" ? undefined : val), z.string().optional().nullable()),
@@ -19,6 +32,27 @@ export async function addFollowUp(leadId: string, data: any) {
   if (!validation.success) {
     console.error(validation.error.flatten());
     return { success: false, errors: validation.error.flatten().fieldErrors };
+  }
+
+  // A follow-up date in the past is not actionable — reject it with a field
+  // error instead of throwing.
+  if (validation.data.nextFollowUpDate) {
+    const today = getDateRange("today").start;
+    const chosen = parseIstDate(validation.data.nextFollowUpDate);
+    if (!chosen) {
+      return {
+        success: false,
+        errors: { nextFollowUpDate: ["Invalid date. Please use a valid date."] },
+      };
+    }
+    if (chosen.getTime() < today.getTime()) {
+      return {
+        success: false,
+        errors: {
+          nextFollowUpDate: ["Next Follow-Up Date cannot be before today."],
+        },
+      };
+    }
   }
 
   try {
@@ -57,7 +91,7 @@ export async function addFollowUp(leadId: string, data: any) {
           action: "FOLLOW_UP_ADDED",
           entityType: "FollowUp",
           entityId: followUp.id,
-          details: `Stage updated to ${validation.data.stage} for ${lead.name}`,
+          details: `Stage updated to ${followUpStageLabel(validation.data.stage)} (${leadStatusLabel(validation.data.status)}) for ${lead.name}`,
         }
       });
 

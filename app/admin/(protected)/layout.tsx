@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/auth";
 import LogoutButton from "@/components/LogoutButton";
 import GlobalSearch from "./search/GlobalSearch";
 import Link from "next/link";
-import { LayoutDashboard, Users, LogOut, List, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, List, Menu, X, BarChart3 } from "lucide-react";
 import { ReactNode } from "react";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
@@ -43,6 +43,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           >
             <Users size={20} />
             <span>Client Management</span>
+          </Link>
+          <Link
+            href="/admin/reports"
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <BarChart3 size={20} />
+            <span>Reports</span>
           </Link>
         </nav>
 

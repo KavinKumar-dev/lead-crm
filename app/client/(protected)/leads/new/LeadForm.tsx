@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createLead, checkDuplicateLead } from "../actions";
 import { useRouter } from "next/navigation";
 import { LEAD_SOURCE } from "@/lib/constants";
+import { leadSourceLabel } from "@/lib/labels";
 
 export default function LeadForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,7 +67,7 @@ export default function LeadForm() {
         <div className="space-y-1">
           <label className="text-sm font-medium">Lead Source</label>
           <select name="source" className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-green-500">
-            {Object.values(LEAD_SOURCE).map(s => <option key={s} value={s}>{s}</option>)}
+            {Object.values(LEAD_SOURCE).map(s => <option key={s} value={s}>{leadSourceLabel(s)}</option>)}
           </select>
         </div>
         <div className="space-y-1">

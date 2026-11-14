@@ -1,15 +1,11 @@
 import { db } from "@/lib/db";
 import {
-  DATE_RANGE_OPTIONS,
   DateRange,
   formatIstDate,
   getDateRange,
-  isDateRangeName,
-  istEndOfDay,
-  parseIstDate,
+  resolveDateRange,
 } from "@/lib/dateRange";
 
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const TERMINAL_STATUSES = ["CONVERTED", "LOST"];
 
 export interface DashboardInput {
@@ -53,44 +49,7 @@ export function resolveRange(
 ):
   | { ok: true; range: DateRange; rangeName: string; rangeLabel: string }
   | { ok: false; error: string } {
-  const rangeName = input.range || "today";
-
-  if (!isDateRangeName(rangeName)) {
-    return { ok: false, error: `Unknown date filter "${rangeName}".` };
-  }
-
-  let start: Date | null = null;
-  let end: Date | null = null;
-
-  if (rangeName === "custom") {
-    if (input.startDate) start = parseIstDate(input.startDate);
-    if (input.endDate) end = parseIstDate(input.endDate);
-
-    if (
-      (input.startDate && !ISO_DATE_RE.test(input.startDate)) ||
-      (input.endDate && !ISO_DATE_RE.test(input.endDate)) ||
-      (input.startDate && !start) ||
-      (input.endDate && !end)
-    ) {
-      return { ok: false, error: "Invalid custom date. Please use valid YYYY-MM-DD dates." };
-    }
-    if (!start || !end) {
-      return { ok: false, error: "Custom range requires both a start and an end date." };
-    }
-  }
-
-  const range = getDateRange(rangeName, {
-    start: input.startDate,
-    end: input.endDate,
-  });
-
-  // Ensure end-of-day IST for custom ranges
-  if (rangeName === "custom" && end) {
-    range.end = istEndOfDay(end);
-  }
-
-  const rangeLabel = DATE_RANGE_OPTIONS.find((o) => o.value === rangeName)?.label ?? "Today";
-  return { ok: true, range, rangeName, rangeLabel };
+  return resolveDateRange(input);
 }
 
 export async function computeDashboardStats(

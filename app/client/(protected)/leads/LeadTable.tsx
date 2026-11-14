@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Eye, Edit2 } from "lucide-react";
 import { format } from "date-fns";
+import { leadSourceLabel, leadStatusLabel } from "@/lib/labels";
 
 interface Lead {
   id: string;
@@ -65,11 +66,11 @@ export default function LeadTable({
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-900">{lead.name}</td>
                   <td className="px-4 py-3 text-gray-600">{lead.mobile}</td>
-                  <td className="px-4 py-3 text-gray-600">{lead.source}</td>
+                  <td className="px-4 py-3 text-gray-600">{leadSourceLabel(lead.source)}</td>
                   <td className="px-4 py-3 text-gray-600">{lead.campaignName}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${getStatusBadge(lead.status)}`}>
-                      {lead.status.replace(/_/g, " ")}
+                      {leadStatusLabel(lead.status)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-500">
