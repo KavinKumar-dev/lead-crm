@@ -50,7 +50,7 @@ export default function DashboardView({
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
           {stats.rangeLabel} — {stats.startDate} to {stats.endDate}
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatCard
             label="Total Leads"
             value={kpis.total}
@@ -129,7 +129,7 @@ export default function DashboardView({
             Live
           </span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
           <StatCard
             label="New Leads"
             value={today.newLeads}

@@ -71,30 +71,36 @@ export default function DateFilterBar({
       </div>
 
       {currentRange === "custom" && (
-        <div className="flex flex-wrap items-end gap-3 mt-3 pt-3 border-t">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500">Start date</label>
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 mt-3 pt-3 border-t">
+          <div className="flex flex-col gap-1 w-full sm:w-auto sm:flex-1 min-w-0">
+            <label htmlFor="range-start" className="text-xs text-gray-500">
+              Start date
+            </label>
             <input
+              id="range-start"
               type="date"
               value={customStart}
               onChange={(e) => setCustomStart(e.target.value)}
-              className="border rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500 min-h-[44px]"
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500">End date</label>
+          <div className="flex flex-col gap-1 w-full sm:w-auto sm:flex-1 min-w-0">
+            <label htmlFor="range-end" className="text-xs text-gray-500">
+              End date
+            </label>
             <input
+              id="range-end"
               type="date"
               value={customEnd}
               onChange={(e) => setCustomEnd(e.target.value)}
-              className="border rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500 min-h-[44px]"
             />
           </div>
           <button
             type="button"
             disabled={isPending || !customStart || !customEnd}
             onClick={() => apply({ range: "custom", startDate: customStart, endDate: customEnd })}
-            className="flex items-center gap-2 px-4 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 min-h-[44px] bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
           >
             <Calendar size={16} />
             {isPending ? "Applying..." : "Apply"}

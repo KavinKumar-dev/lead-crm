@@ -56,4 +56,31 @@
   body {
     @apply bg-background text-foreground;
   }
+  html {
+    /* Never let a wide table stretch the page sideways. */
+    overflow-x: hidden;
+  }
 }
+
+@layer utilities {
+  /**
+   * Touch targets.
+   *
+   * On small screens every button and every button-like link is at least
+   * 40px tall so it can be tapped comfortably.
+   */
+  @media (max-width: 767px) {
+    button,
+    a.inline-flex,
+    a.flex.items-center {
+      min-height: 40px;
+    }
+
+    /* Icon-only buttons stay square. */
+    button:has(> svg:only-child),
+    a.inline-flex:has(> svg:only-child) {
+      min-width: 40px;
+    }
+  }
+}
+

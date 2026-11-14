@@ -83,19 +83,21 @@ export default function LeadFilters() {
         </div>
 
         {/* Date Range */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
           <input
+            aria-label="Start date"
             type="date"
             defaultValue={searchParams.get("startDate")?.toString()}
             onChange={(e) => updateParam("startDate", e.target.value)}
-            className="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full sm:w-auto border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-green-500 min-h-[44px]"
           />
-          <span className="text-gray-400 text-xs">to</span>
+          <span className="text-gray-400 text-xs sm:text-sm">to</span>
           <input
+            aria-label="End date"
             type="date"
             defaultValue={searchParams.get("endDate")?.toString()}
             onChange={(e) => updateParam("endDate", e.target.value)}
-            className="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full sm:w-auto border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-green-500 min-h-[44px]"
           />
         </div>
       </div>

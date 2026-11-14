@@ -22,8 +22,8 @@ export default async function ClientsPage({
         <CreateClientModal />
       </div>
 
-      <div className="flex items-center justify-between">
-        <Suspense fallback={<div className="h-10 w-64 bg-gray-100 animate-pulse rounded-lg" />}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <Suspense fallback={<div className="h-11 w-full sm:w-64 bg-gray-100 animate-pulse rounded-lg" />}>
           <ClientSearch />
         </Suspense>
         <div className="text-sm text-gray-500 font-medium">

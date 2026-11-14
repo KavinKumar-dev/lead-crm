@@ -38,7 +38,7 @@ export default function LeadTable({
   return (
     <div className="bg-white border rounded-xl overflow-hidden shadow-sm space-y-4 p-4">
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full min-w-[860px] text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b text-gray-500 text-sm font-medium">
               <th className="px-4 py-3">Lead ID</th>
@@ -80,15 +80,17 @@ export default function LeadTable({
                     <div className="flex items-center justify-end gap-2">
                       <Link
                         href={`/client/leads/${lead.id}`}
-                        className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
+                        className="inline-flex items-center justify-center w-10 h-10 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
                         title="View Details"
+                        aria-label={`View ${lead.name}`}
                       >
                         <Eye size={16} />
                       </Link>
                       <Link
                         href={`/client/leads/${lead.id}/edit`}
-                        className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
+                        className="inline-flex items-center justify-center w-10 h-10 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
                         title="Edit Lead"
+                        aria-label={`Edit ${lead.name}`}
                       >
                         <Edit2 size={16} />
                       </Link>

@@ -1,64 +1,54 @@
 import { requireAdmin } from "@/lib/auth";
 import LogoutButton from "@/components/LogoutButton";
+import MobileNav from "@/components/layout/MobileNav";
+import { NAV_ICONS } from "@/components/layout/navIcons";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import GlobalSearch from "./search/GlobalSearch";
+import { ADMIN_NAV } from "@/lib/nav";
 import Link from "next/link";
-import { LayoutDashboard, Users, LogOut, List, Menu, X, BarChart3, BellRing } from "lucide-react";
 import { ReactNode } from "react";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await requireAdmin();
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
-      {/* Mobile Header */}
-      <header className="md:hidden flex items-center justify-between p-4 bg-white border-b">
-        <span className="font-bold text-xl text-blue-600">Admin Panel</span>
-        <NotificationBell scope="admin" />
+    <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 overflow-x-hidden">
+      {/* Mobile header with the menu button */}
+      <header className="md:hidden flex items-center gap-2 bg-white border-b px-3 py-2 sticky top-0 z-40">
+        <MobileNav
+          items={ADMIN_NAV}
+          title="Lead CRM"
+          theme="admin"
+          userName={session.name}
+          userMeta="Administrator"
+          logoutRedirect="/admin/login"
+        />
+        <span className="font-bold text-lg text-blue-600 truncate">Admin Panel</span>
+        <div className="ml-auto">
+          <NotificationBell scope="admin" />
+        </div>
       </header>
 
-      {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-white border-r flex-shrink-0 flex flex-col">
-        <div className="p-6 hidden md:block">
+      {/* Sidebar (desktop only — on mobile it lives in the drawer) */}
+      <aside className="hidden md:flex w-64 bg-white border-r flex-shrink-0 flex-col">
+        <div className="p-6">
           <span className="font-bold text-2xl text-blue-600">Lead CRM</span>
         </div>
 
         <nav className="p-4 space-y-2 flex-1">
-          <Link
-            href="/admin/dashboard"
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <LayoutDashboard size={20} />
-            <span>Dashboard</span>
-          </Link>
-          <Link
-            href="/admin/leads"
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <List size={20} />
-            <span>All Leads</span>
-          </Link>
-          <Link
-            href="/admin/clients"
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <Users size={20} />
-            <span>Client Management</span>
-          </Link>
-          <Link
-            href="/admin/reports"
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <BarChart3 size={20} />
-            <span>Reports</span>
-          </Link>
-          <Link
-            href="/admin/notifications"
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <BellRing size={20} />
-            <span>Notifications</span>
-          </Link>
+          {ADMIN_NAV.map((item) => {
+            const Icon = NAV_ICONS[item.icon];
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition-colors min-h-[44px]"
+              >
+                <Icon size={20} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="mt-auto p-4 border-t">
@@ -77,7 +67,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header with global search + notification bell */}
+        {/* Header with global search + notification bell (desktop) */}
         <header className="hidden md:flex items-center justify-between gap-4 bg-white border-b px-8 py-3 sticky top-0 z-40">
           <span className="text-sm text-gray-500">
             Signed in as <span className="font-semibold text-gray-800">{session.name}</span>
@@ -89,11 +79,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         </header>
 
         {/* Mobile global search */}
-        <div className="md:hidden bg-white border-b px-4 py-3">
+        <div className="md:hidden bg-white border-b px-4 py-2">
           <GlobalSearch />
         </div>
 
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto">{children}</main>
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto min-w-0">{children}</main>
       </div>
     </div>
   );

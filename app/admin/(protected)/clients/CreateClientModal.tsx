@@ -51,11 +51,11 @@ export default function CreateClientModal() {
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-md max-h-[92vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50 sticky top-0">
               <h2 className="text-xl font-bold">Create New Client</h2>
-              <button onClick={close} className="text-gray-400 hover:text-gray-600">
+              <button onClick={close} aria-label="Close" className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
                 <X size={20} />
               </button>
             </div>

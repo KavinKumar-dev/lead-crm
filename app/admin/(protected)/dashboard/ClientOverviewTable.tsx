@@ -64,7 +64,7 @@ export default function ClientOverviewTable({
   return (
     <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full min-w-[840px] text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b text-gray-500 text-sm font-medium">
               {COLUMNS.map((col) => (

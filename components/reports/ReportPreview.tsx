@@ -57,7 +57,7 @@ export default function ReportPreview({
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-sm">
+          <table className="w-full min-w-[640px] text-left border-collapse text-sm">
             <thead>
               <tr className="bg-gray-50 border-b text-gray-500 font-medium">
                 {columns.map((col) => (

@@ -40,7 +40,7 @@ export default async function FollowUpsPage({
                   ? "/client/follow-ups"
                   : `/client/follow-ups?filter=${key}`
               }
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              className={`inline-flex items-center justify-center px-3 py-2 min-h-[40px] rounded-md text-sm font-medium transition-colors ${
                 current === key
                   ? "bg-green-600 text-white"
                   : "text-gray-600 hover:bg-gray-100"
@@ -57,33 +57,38 @@ export default async function FollowUpsPage({
           No follow-ups in this list.
         </div>
       ) : (
-        <div className="bg-white border rounded-xl overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 border-b">
-                <th className="p-4 text-left">Lead ID</th>
-                <th className="p-4 text-left">Name</th>
-                <th className="p-4 text-left">Due Date</th>
-                <th className="p-4 text-left">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leads.map((lead) => (
-                <tr key={lead.id} className="border-b">
-                  <td className="p-4 font-mono">{lead.leadCode}</td>
-                  <td className="p-4">{lead.name}</td>
-                  <td className="p-4">
-                    {lead.nextFollowUpDate ? format(lead.nextFollowUpDate, "PPP") : "N/A"}
-                  </td>
-                  <td className="p-4">
-                    <Link href={`/client/leads/${lead.id}`} className="text-green-600 underline">
-                      View
-                    </Link>
-                  </td>
+        <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b text-gray-500 text-sm font-medium">
+                  <th className="p-4 text-left">Lead ID</th>
+                  <th className="p-4 text-left">Name</th>
+                  <th className="p-4 text-left">Due Date</th>
+                  <th className="p-4 text-left">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {leads.map((lead) => (
+                  <tr key={lead.id} className="border-b hover:bg-gray-50 transition-colors">
+                    <td className="p-4 font-mono whitespace-nowrap">{lead.leadCode}</td>
+                    <td className="p-4">{lead.name}</td>
+                    <td className="p-4 whitespace-nowrap text-gray-600">
+                      {lead.nextFollowUpDate ? format(lead.nextFollowUpDate, "PPP") : "N/A"}
+                    </td>
+                    <td className="p-4">
+                      <Link
+                        href={`/client/leads/${lead.id}`}
+                        className="inline-flex items-center text-green-600 underline min-h-[40px]"
+                      >
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
